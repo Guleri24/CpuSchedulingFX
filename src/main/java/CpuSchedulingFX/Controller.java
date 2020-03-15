@@ -1,27 +1,48 @@
 package CpuSchedulingFX;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
 import javafx.util.converter.DoubleStringConverter;
 import javafx.util.converter.IntegerStringConverter;
 
 import java.net.URL;
+import java.text.DecimalFormat;
+import java.util.Random;
 import java.util.ResourceBundle;
 
 public class Controller implements Initializable {
+
+    public Button deleteProcesses;
     @FXML
     ComboBox<String> scheduleMethod;
     @FXML
     CheckBox preemptive;
     @FXML
-    TextField pid, arrivalTime, burstTime, priority, timeQuantum;
+    TextField pid;
+    @FXML
+    TextField arrivalTime;
+    @FXML
+    TextField burstTime;
+    @FXML
+    TextField priority;
+    @FXML
+    TextField timeQuantum;
+
     @FXML
     TableView<Process> table;
     @FXML
@@ -43,12 +64,11 @@ public class Controller implements Initializable {
     HBox ganttChart;
 
     ObservableList<Process> processes = FXCollections.observableArrayList();
-    public static boolean first;
-    public static double maxWidth;
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        first = true;
+        boolean first = true;
+
         scheduleMethod.getItems().addAll("FCFS", "SJF", "Priority", "Round Robin");
         scheduleMethod.getSelectionModel().selectFirst();
 
@@ -56,7 +76,7 @@ public class Controller implements Initializable {
         priority.setVisible(false);
         timeQuantum.setVisible(false);
 
-        // visible or hidden based on method
+        // Visible or Hidden Based On Method
         scheduleMethod.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
             if (n.equals("FCFS")) {
                 preemptive.setVisible(false);
@@ -90,33 +110,35 @@ public class Controller implements Initializable {
         table.setItems(processes);
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         pidCol.setCellFactory(TextFieldTableCell.forTableColumn());
-        arrivalTimeCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
-        burstTimeCol.setCellFactory(TextFieldTableCell.forTableColumn(new DoubleStringConverter()));
-        priorityCol.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
+        arrivalTimeCol.setCellFactory(TextFieldTableCell.<Process, Double>forTableColumn(new DoubleStringConverter()));
+        burstTimeCol.setCellFactory(TextFieldTableCell.<Process, Double>forTableColumn(new DoubleStringConverter()));
+        priorityCol.setCellFactory(TextFieldTableCell.<Process, Integer>forTableColumn(new IntegerStringConverter()));
 
         pid.setOnKeyPressed(e -> {
-            if (e.getCode().equals(KeyCode.ENTER)) this.onAddProcess;
+            if (e.getCode().equals(KeyCode.ENTER)) this.onAddProcess();
         });
         arrivalTime.setOnKeyPressed(e -> {
-            if (e.getCode().equals(KeyCode.ENTER)) this.onAddProcess;
+            if (e.getCode().equals(KeyCode.ENTER)) this.onAddProcess();
         });
         burstTime.setOnKeyPressed(e -> {
-            if (e.getCode().equals(KeyCode.ENTER)) this.onAddProcess;
+            if (e.getCode().equals(KeyCode.ENTER)) this.onAddProcess();
         });
         priority.setOnKeyPressed(e -> {
-            if (e.getCode().equals(KeyCode.ENTER)) this.onAddProcess;
+            if (e.getCode().equals(KeyCode.ENTER)) this.onAddProcess();
         });
+
         timeQuantum.setOnKeyPressed(e -> {
-            if (e.getCode().equals(KeyCode.ENTER)) this.onAddProcess;
+            if (e.getCode().equals(KeyCode.ENTER)) this.onCalculateAndDraw();
         });
+
         table.setOnKeyPressed(e -> {
-            if (e.getCode().equals(KeyCode.DELETE)) this.onDeleteProcess;
+            if (e.getCode().equals(KeyCode.DELETE)) this.onDeleteProcesses();
         });
     }
 
     public void onCalculateAndDraw() {
         double timeQuantumInput = Validator.validate_double(timeQuantum);
-        if (timeQuantumInput <= 0 && scheduleMethod.getSelectionModel().getSelectionItem() == "Round Robin") {
+        if (timeQuantumInput <= 0 && scheduleMethod.getSelectionModel().getSelectedItem() == "Round Robin") {
             timeQuantum.getStyleClass().add("input-wrong");
             return;
         }
@@ -124,7 +146,8 @@ public class Controller implements Initializable {
 
         Stage stage = new Stage();
         stage.setTitle("Gantt Chart");
-        stage.getIcons().add(new Image(getClass().getResourcesAsStream("icon.png")));
+        stage.getIcons().add(new Image(getClass().getResourceAsStream("icon.png")));
+        //StackPane spane = new StackPane();
         StackPane layout = new StackPane();
         HBox ganttChart = new HBox();
         layout.setAlignment(Pos.CENTER);
@@ -140,27 +163,27 @@ public class Controller implements Initializable {
         DoubleProperty leftPadding = new SimpleDoubleProperty(0.1 * scene.getWidth());
         ganttChartContainer.paddingProperty().bind(Bindings.createObjectBinding(() -> new Insets(0, 0, 0, leftPadding.doubleValue()), leftPadding));
 
-        if (scheduleMethod.getSelectionModel().getSelectionItem() == "FCFS") {
+        if (scheduleMethod.getSelectionModel().getSelectedItem() == "FCFS") {
             Scheduler.sortFCFS(ganttChart, processes, scene);
-        } else if (scheduleMethod.getSelectionModel().getSelectionItem() == "Priority") {
+        } else if (scheduleMethod.getSelectionModel().getSelectedItem() == "Priority") {
             Scheduler.sortPriority(ganttChart, processes, preemptive.isSelected(), scene);
-        } else if (scheduleMethod.getSelectionModel().getSelectionItem() == "SJF") {
+        } else if (scheduleMethod.getSelectionModel().getSelectedItem() == "SJF") {
             Scheduler.sortSJF(ganttChart, processes, preemptive.isSelected(), scene);
         } else if (scheduleMethod.getSelectionModel().getSelectedItem() == "Round Robin") {
             Scheduler.sortRoundRobin(ganttChart, processes, Double.parseDouble(timeQuantum.getText()), scene);
         }
-
         VBox INFO = new VBox();
         double waitingTime = 0;
         for (Process p : processes)
             waitingTime += p.getWaitingTime();
         Label awt = new Label("Average Waiting Time = " + new DecimalFormat("###.###").format(waitingTime / processes.size()));
+        awt.setAlignment(Pos.CENTER);
         INFO.getChildren().add(awt);
 
         double turnAroundTime = 0;
         for (Process p : processes)
             turnAroundTime += (p.getDepartureTime() - p.getArrivalTime());
-        Label atta = new Label("Average TurnAround Time = " + new DecimalFormat("###.###").format(turnAroundTime / processes.size()));
+        Label atta = new Label("Average Turnaround Time = " + new DecimalFormat("###.###").format(turnAroundTime / processes.size()));
 
         ganttChart.setAlignment(Pos.BOTTOM_RIGHT);
         INFO.setAlignment(Pos.BOTTOM_CENTER);
@@ -182,62 +205,72 @@ public class Controller implements Initializable {
         double arrivalTimeInput = Validator.validate_double(arrivalTime);
         double burstTimeInput = Validator.validate_double(burstTime);
         int priorityInput = Validator.validate_int(priority);
-        if (scheduleMethod.getSelectionModel().getSelectionItem() != "Priority") priorityInput = 1;
-        if (pidInput != "-1" && arrivalTimeInput != && burstTimeInput != -1 && priorityInput != -1) {
+        if (scheduleMethod.getSelectionModel().getSelectedItem() != "Priority") priorityInput = 1;
+        if (!pidInput.equals("-1") && arrivalTimeInput != -1 && burstTimeInput != -1 && priorityInput != -1) {
             processes.add(new Process(pidInput, arrivalTimeInput, burstTimeInput, priorityInput));
             pid.clear();
             arrivalTime.clear();
             burstTime.clear();
             priority.clear();
         }
-        if (pidInput == "-1") pid.getStyleClass().add("input-wrong");
+        if (pidInput.equals("-1")) pid.getStyleClass().add("input-wrong");
         else pid.getStyleClass().removeAll("input-wrong");
         if (arrivalTimeInput == -1) arrivalTime.getStyleClass().add("input-wrong");
         else arrivalTime.getStyleClass().removeAll("input-wrong");
         if (burstTimeInput == -1) burstTime.getStyleClass().add("input-wrong");
-        else burstTime.getStyleClass.removeAll("input-wrong");
+        else burstTime.getStyleClass().removeAll("input-wrong");
         if (priorityInput == -1) priority.getStyleClass().add("input-wrong");
-        else priorityInput.getStyleClass().removeAll("input-wrong");
+        else priority.getStyleClass().removeAll("input-wrong");
     }
 
-    public void onDeleteProcess() {
-        table.getItems().removeAll(table.getSelectionModel().getSelectionItem());
-    }
-
-    public void resetColumn(TableColumn.CellEditEvent newCell) {
-
+    public void onDeleteProcesses() {
+        table.getItems().removeAll(table.getSelectionModel().getSelectedItems());
     }
 
     public void editPidCellEvent(TableColumn.CellEditEvent newCell) {
-        Process selectedProcess = table.getSelectionModel().getSelectionItem();
+        Process selectedProcess = table.getSelectionModel().getSelectedItem();
         Process to = (Process) newCell.getTableView().getItems().get(newCell.getTablePosition().getRow());
         String pidInput = Validator.validate_string(newCell.getNewValue().toString());
-        if (pidInput != "-1") {
+        if (!pidInput.equals("-1")) {
             selectedProcess.setPid(newCell.getNewValue().toString());
         } else {
             newCell.getTableView().getItems().set(newCell.getTablePosition().getRow(), to);
         }
     }
 
-    public void editPriorityCellEvent(TableColumn.CellEditEvent newCell) {
-        Process selectedProcess = table.getSelectionModel().getSelectionItem();
-        Process to = (Process) newCell.getTableView().getItems().get(newCell.getTablePosition().getRow());
-        int priority = Validator.validate_int((int) newCell.getNewValue());
+    public void editPriorityCellEvent(TableColumn.CellEditEvent<Process, Integer> newCell) {
+        Process selectedProcess = table.getSelectionModel().getSelectedItem();
+        Process to = newCell.getTableView().getItems().get(newCell.getTablePosition().getRow());
+        int priority = Validator.validate_int(newCell.getNewValue());
         if (priority >= 0) {
-            selectedProcess.setPrioirty((int) newCell.getNewValue());
+            selectedProcess.setPriority(newCell.getNewValue());
         } else {
             throw new NumberFormatException();
+//            newCell.getTableView().getItems().set(newCell.getTablePosition().getRow(),to);
         }
     }
 
-    public void editBurstTimeCellEvent(TableColumn.CellEditEvent newCell) {
-        Process selectedProcess = table.getSelectionModel().getSelectionItem();
-        Process to = (Process) newCell.getTableView().getItems().get(newCell.getTablePosition().getRow());
-        double burstTime = Validator.validate_double((double) newCell.getNewValue());
-        if (burstTime >= 0) {
-            selectedProcess.setBurstTime((double) newCell.getNewValue());
+    public void editArrivalTimeCellEvent(TableColumn.CellEditEvent<Process, Double> newCell) {
+        Process selectedProcess = table.getSelectionModel().getSelectedItem();
+        Process to = newCell.getTableView().getItems().get(newCell.getTablePosition().getRow());
+        double arrivalTime = Validator.validate_double(newCell.getNewValue());
+        if (arrivalTime >= 0) {
+            selectedProcess.setArrivalTime(newCell.getNewValue());
         } else {
             throw new NumberFormatException();
+//            newCell.getTableView().getItems().set(newCell.getTablePosition().getRow(),to);
+        }
+    }
+
+    public void editBurstTimeCellEvent(TableColumn.CellEditEvent<Process, Double> newCell) {
+        Process selectedProcess = table.getSelectionModel().getSelectedItem();
+        Process to = newCell.getTableView().getItems().get(newCell.getTablePosition().getRow());
+        double burstTime = Validator.validate_double(newCell.getNewValue());
+        if (burstTime >= 0) {
+            selectedProcess.setBurstTime(newCell.getNewValue());
+        } else {
+            throw new NumberFormatException();
+//            newCell.getTableView().getItems().set(newCell.getTablePosition().getRow(),to);
         }
     }
 
@@ -367,6 +400,7 @@ public class Controller implements Initializable {
                 processes.add(new Process("P6", 15, 2, 1));
                 break;
         }
+
 
     }
 }
